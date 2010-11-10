@@ -83,11 +83,13 @@ whnf (App f x) = case whnf f of
     App a b -> App (App a b) x
 whnf x = x
 
-normalize :: AST -> AST
-normalize (Lambda n ast) = Lambda n (normalize ast)
-normalize (App f x) = 
-    case normalize f of
-        Lambda n ast -> normalize (subst n (normalize x) ast)
-        Var n -> App (Var n) (normalize x)
-        App a b -> App (App a b) (normalize x)
-normalize (Var n) = Var n
+normalize :: Map.Map Name AST -> AST -> AST
+normalize env (Lambda n ast) = Lambda n (normalize env ast)
+normalize env (App f x) = 
+    case normalize env f of
+        Lambda n ast -> normalize env (subst n (normalize env x) ast)
+        Var n -> App (Var n) (normalize env x)
+        App a b -> App (App a b) (normalize env x)
+normalize env (Var n) 
+    | Just e <- Map.lookup n env = e
+    | otherwise = Var n

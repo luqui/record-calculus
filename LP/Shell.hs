@@ -39,7 +39,9 @@ letCommand = massage <$> P.tok "let" <*> P.ident <*> P.tok "=" <*> P.expr
 showCommand :: P.Parser (ShellM ())
 showCommand = massage <$> P.tok "show" <*> P.expr
     where
-    massage _ expr = liftIO . print . normalize $ expr
+    massage _ expr = do
+        defns <- Acc.get envDefns <$> get
+        liftIO . print . normalize defns $ expr
 
 parseCommand :: P.Parser (ShellM ())
 parseCommand = P.choice [letCommand, showCommand]
