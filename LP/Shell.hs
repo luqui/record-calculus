@@ -42,14 +42,14 @@ showCommand = massage <$> P.tok "show" <*> P.expr
     where
     massage _ expr = do
         defns <- Acc.get envDefns <$> get
-        liftIO . print . normalize defns $ expr
+        liftIO . print . normalizeEnv defns $ expr
 
 assumeCommand :: P.Parser (ShellM ())
 assumeCommand = massage <$> P.tok "assume" <*> P.expr
     where
     massage _ expr = do
         defns <- Acc.get envDefns <$> get
-        let normexpr = normalize defns expr
+        let normexpr = normalizeEnv defns expr
         liftIO . putStrLn $ "-| " ++ show normexpr
         modify (Acc.modify envKnowledge (Set.insert normexpr))
 
@@ -59,7 +59,7 @@ deduceCommand = massage <$> P.tok "deduce" <*> P.expr
     massage _ expr = do
         defns <- Acc.get envDefns <$> get
         knowledge <- Acc.get envKnowledge <$> get
-        let normexpr = normalize defns expr
+        let normexpr = normalizeEnv defns expr
         if normexpr `Set.member` knowledge
             then go normexpr
             else liftIO . putStrLn $ "Can't deduce because " ++ show normexpr ++ " is not known.  Did you forget to assume it?"
@@ -81,7 +81,7 @@ deduceCommand = massage <$> P.tok "deduce" <*> P.expr
                             go expr
                         Right var -> do
                             defns <- Acc.get envDefns <$> get
-                            go . normalize defns $ subst n var e
+                            go . normalizeEnv defns $ subst n var e
             _ -> done
 
 bindingsCommand :: P.Parser (ShellM ())

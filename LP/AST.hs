@@ -9,7 +9,8 @@ import Control.Arrow (first)
 import Data.Maybe (listToMaybe)
 import Control.Monad.Trans.State
 import Control.Monad (forever)
-import System.IO
+import Control.Monad.Identity
+import Control.Applicative
 
 type Name = String
 
@@ -83,13 +84,21 @@ whnf (App f x) = case whnf f of
     App a b -> App (App a b) x
 whnf x = x
 
-normalize :: Map.Map Name AST -> AST -> AST
-normalize env (Lambda n ast) = Lambda n (normalize env ast)
-normalize env (App f x) = 
-    case normalize env f of
-        Lambda n ast -> normalize env (subst n (normalize env x) ast)
-        Var n -> App (Var n) (normalize env x)
-        App a b -> App (App a b) (normalize env x)
-normalize env (Var n) 
-    | Just e <- Map.lookup n env = e
-    | otherwise = Var n
+normalize :: (Name -> AST) -> AST -> AST
+normalize env = runIdentity . normalizeM (return . env)
+
+normalizeEnv :: Map.Map Name AST -> AST -> AST
+normalizeEnv env = normalize f
+    where
+    f x | Just e <- Map.lookup x env = e
+        | otherwise = Var x
+
+normalizeM :: (Functor m, Monad m) => (Name -> m AST) -> AST -> m AST
+normalizeM env (Lambda n ast) = Lambda n <$> normalizeM env ast
+normalizeM env (App f x) = do
+    f' <- normalizeM env f
+    case f' of
+        Lambda n ast -> normalizeM env $ subst n x ast   -- call by name
+        Var n -> App (Var n) <$> normalizeM env x
+        App a b -> App (App a b) <$> normalizeM env x
+normalizeM env (Var n) = env n
