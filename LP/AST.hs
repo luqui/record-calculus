@@ -28,7 +28,7 @@ showAST = go False False
     where
     go ap lp (Lambda n ast) = parens lp $ "\\" ++ n ++ inL ast
     go ap lp (Var n) = n
-    go ap lp (App a b) = parens ap (go False True a ++ " " ++ go True False b)
+    go ap lp (App a b) = parens ap (go False True a ++ " " ++ go True lp b)
 
     inL (Lambda n ast) = " " ++ n ++ inL ast
     inL x = ". " ++ go False False x
@@ -53,10 +53,12 @@ find p = listToMaybe . filter p
 nameExtension :: Name -> Name
 nameExtension name
     | null name = "@0"
-    | Just (nonn, num) <- numeric = nonn ++ show (succ (read num :: Integer))
+    | Just (nonn, num) <- numeric = nonn ++ show (succ (read' num))
     | last name == '\'' = name ++ "0"
     where
     numeric = find (all Char.isDigit . snd) (splits name)
+    read' "" = 0
+    read' s = read s
 
 nameExtensions :: Name -> [Name]
 nameExtensions = tail . iterate nameExtension
