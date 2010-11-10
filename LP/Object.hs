@@ -11,7 +11,6 @@ type Definitions = Map.Map Name Object
 
 data Object = Object 
     { objDefns :: Definitions
-    , objParent :: Maybe Object
     , objAST :: AST
     }
     deriving (Eq, Ord)
@@ -22,20 +21,17 @@ instance Show Object where
 fromAST :: Definitions -> AST -> Object
 fromAST env = toObject . runWriter . normalizeM envLookup
     where
-    toObject (ast,defns) = Object defns Nothing ast
-    envLookup x | Just e <- Map.lookup x env = tell (Map.singleton x e) >> return (objAST e)
-                | otherwise                  = return (Var x)
+    toObject (ast,defns) = Object defns ast
+    envLookup x = do
+        maybe (return ()) (tell . Map.singleton x) $ Map.lookup x env
+        return (Var x)
 
-extend :: Definitions -> Object -> Object
-extend env p = obj { objParent = Just p }
+normalizeObject :: Definitions -> Object -> AST
+normalizeObject external obj = normalize envLookup (objAST obj)
     where
-    obj = fromAST (Map.union env (allDefns p)) (objAST p)
-
-allDefns :: Object -> Definitions
-allDefns = Map.unions . map objDefns . ancestry
-
-ancestry :: Object -> [Object]
-ancestry obj = obj : maybe [] ancestry (objParent obj)
+    env = objDefns obj `Map.union` external
+    envLookup x | Just o <- Map.lookup x env = normalizeObject env o
+                | otherwise = Var x
 
 showDetailed :: Object -> String
 showDetailed obj = lhs ++ " |- " ++ show (objAST obj)

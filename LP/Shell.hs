@@ -15,7 +15,7 @@ import qualified Text.Parsec as P
 import qualified Data.Accessor.Basic as Acc
 import Control.Applicative
 import Data.Accessor.Template
-import Debug.Trace
+import Control.Monad (forM_)
 
 data Env = Env {
     envDefns_     :: Definitions
@@ -45,7 +45,7 @@ showCommand = massage <$> P.tok "show" <*> P.expr
     where
     massage _ expr = do
         defns <- Acc.get envDefns <$> get
-        liftIO . print . fromAST defns $ expr
+        liftIO . print . normalizeObject defns . fromAST defns $ expr
 
 bindingsCommand :: P.Parser (ShellM ())
 bindingsCommand = massage <$> P.tok "bindings"
@@ -54,17 +54,23 @@ bindingsCommand = massage <$> P.tok "bindings"
         defns <- Acc.get envDefns <$> get
         liftIO $ mapM_ putStrLn [ name ++ " = " ++ show expr | (name, expr) <- Map.assocs defns ]
 
-assumptionsCommand :: P.Parser (ShellM ())
-assumptionsCommand = massage <$> P.tok "assumptions" <*> P.ident
+infoCommand :: P.Parser (ShellM ())
+infoCommand = massage <$> P.tok "info" <*> P.ident
     where
+    go indent obj = do
+        print $ objAST obj
+        forM_ (Map.assocs (objDefns obj)) $ \(k,v) -> do
+            putStr $ replicate indent ' ' ++ k ++ " = "
+            go (indent+4) v
+        
     massage _ ident = do
         defns <- Acc.get envDefns <$> get
         case Map.lookup ident defns of
             Nothing -> liftIO . putStrLn $ "No such symbol"
-            Just obj -> liftIO . mapM_ putStrLn . map showDetailed . ancestry $ obj
+            Just obj -> liftIO $ go 4 obj
 
 parseCommand :: P.Parser (ShellM ())
-parseCommand = P.choice [letCommand, showCommand, bindingsCommand, assumptionsCommand]
+parseCommand = P.choice [letCommand, showCommand, bindingsCommand, infoCommand]
 
 command :: String -> ShellM ()
 command "" = return ()
