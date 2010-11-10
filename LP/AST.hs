@@ -17,6 +17,7 @@ data AST
     = Lambda Name AST
     | Var Name
     | App AST AST
+    deriving (Eq,Ord)
 
 instance Show AST where
     show = showAST

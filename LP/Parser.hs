@@ -28,10 +28,5 @@ parenExpr = tok "(" *> expr <* tok ")"
 expr :: Parser AST
 expr = foldl1 App <$> P.many1 (P.choice [parenExpr, lambda, var])
 
-input :: Parser AST
-input = expr <* P.eof
-
-parse :: String -> AST
-parse s = case P.parse input "input" s of
-    Left err -> error (show err)
-    Right ast -> ast
+complete :: Parser a -> Parser a
+complete p = p <* P.eof
