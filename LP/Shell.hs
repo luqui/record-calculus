@@ -7,7 +7,7 @@ import qualified Data.Map as Map
 import qualified Data.Set as Set
 import Control.Monad.Trans.State
 import Control.Monad.IO.Class
-import System.Console.Readline (readline)
+import qualified System.Console.Readline as Readline
 import LP.AST
 import qualified LP.Parser as P
 import qualified Text.Parsec as P
@@ -27,10 +27,10 @@ type ShellM = StateT Env IO
 
 shell :: ShellM ()
 shell = do  
-    maybeLine <- liftIO $ readline ">\\> "
+    maybeLine <- liftIO $ Readline.readline ">\\> "
     case maybeLine of
         Nothing -> liftIO $ putStrLn "" >> return ()
-        Just line -> command line >> shell
+        Just line -> liftIO (Readline.addHistory line) >> command line >> shell
 
 letCommand :: P.Parser (ShellM ())
 letCommand = massage <$> P.tok "let" <*> P.ident <*> P.tok "=" <*> P.expr
@@ -56,17 +56,22 @@ assumeCommand = massage <$> P.tok "assume" <*> P.expr
 deduceCommand :: P.Parser (ShellM ())
 deduceCommand = massage <$> P.tok "deduce" <*> P.expr
     where
-    massage _ = go
-    go expr = do
+    massage _ expr = do
         defns <- Acc.get envDefns <$> get
         knowledge <- Acc.get envKnowledge <$> get
         let normexpr = normalize defns expr
-        liftIO . putStrLn $ "|- " ++ show normexpr
-        let done = modify (Acc.modify envKnowledge (Set.insert normexpr))
-        case normexpr of
+        if normexpr `Set.member` knowledge
+            then go normexpr
+            else liftIO . putStrLn $ "Can't deduce because " ++ show normexpr ++ " is not known.  Did you forget to assume it?"
+        
+    go expr = do
+        knowledge <- Acc.get envKnowledge <$> get
+        liftIO . putStrLn $ "|- " ++ show expr
+        let done = modify (Acc.modify envKnowledge (Set.insert expr))
+        case expr of
             App (App (Var "->") p) q | p `Set.member` knowledge -> go q
             Lambda n e -> do
-                maybeLine <- liftIO . readline $ n ++ " = "
+                maybeLine <- liftIO . Readline.readline $ n ++ " = "
                 case maybeLine of
                     Nothing -> done
                     Just "" -> done
@@ -74,7 +79,9 @@ deduceCommand = massage <$> P.tok "deduce" <*> P.expr
                         Left err -> do
                             liftIO . print $ err
                             go expr
-                        Right var -> go (subst n var e)
+                        Right var -> do
+                            defns <- Acc.get envDefns <$> get
+                            go . normalize defns $ subst n var e
             _ -> done
 
 bindingsCommand :: P.Parser (ShellM ())
@@ -97,7 +104,7 @@ parseCommand = P.choice [letCommand, showCommand, assumeCommand, deduceCommand, 
 command :: String -> ShellM ()
 command "" = return ()
 command input = case P.parse (P.complete parseCommand) "input" input of
-    Left err -> liftIO . print $ err
+    Left err -> liftIO $ print err
     Right cmd -> cmd
 
 runShell = execStateT shell emptyEnv
