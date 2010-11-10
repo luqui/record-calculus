@@ -17,7 +17,7 @@ var :: Parser AST
 var = Var <$> ident
 
 ident :: Parser Name
-ident = tokP . P.many1 . P.satisfy $ \c -> not (c `elem` " \t\n\\.")
+ident = tokP . P.many1 . P.satisfy $ \c -> not (c `elem` " \t\n\\.()")
 
 lambda :: Parser AST
 lambda = flip (foldr Lambda) <$> (tok "\\" *> P.many1 ident) <*> (tok "." *> expr)

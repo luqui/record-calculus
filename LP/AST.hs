@@ -24,12 +24,12 @@ instance Show AST where
 showAST :: AST -> String
 showAST = go False False
     where
-    go ap lp ast@(Lambda {}) = parens lp $ "\\" ++ inL ast
+    go ap lp (Lambda n ast) = parens lp $ "\\" ++ n ++ inL ast
     go ap lp (Var n) = n
     go ap lp (App a b) = parens ap (go False True a ++ " " ++ go True False b)
 
-    inL (Lambda n ast) = n ++ " " ++ inL ast
-    inL x = "-> " ++ go False False x
+    inL (Lambda n ast) = " " ++ n ++ inL ast
+    inL x = ". " ++ go False False x
 
     parens True x = "(" ++ x ++ ")"
     parens False x = x
