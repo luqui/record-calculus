@@ -9,6 +9,7 @@ import Control.Monad.Trans.State
 import Control.Monad.IO.Class
 import qualified System.Console.Readline as Readline
 import LP.AST
+import LP.Object
 import qualified LP.Parser as P
 import qualified Text.Parsec as P
 import qualified Data.Accessor.Basic as Acc
@@ -17,8 +18,7 @@ import Data.Accessor.Template
 import Debug.Trace
 
 data Env = Env {
-    envDefns_     :: Map.Map Name AST,
-    envKnowledge_ :: Set.Set AST
+    envDefns_     :: Definitions
 }
 
 $( deriveAccessors ''Env )
@@ -35,54 +35,17 @@ shell = do
 letCommand :: P.Parser (ShellM ())
 letCommand = massage <$> P.tok "let" <*> P.ident <*> P.tok "=" <*> P.expr
     where
-    massage _ ident _ expr = modify . Acc.modify envDefns $ Map.insert ident expr
+    massage _ ident _ expr = do
+        defns <- Acc.get envDefns <$> get
+        let object = fromAST defns expr
+        modify . Acc.modify envDefns $ Map.insert ident object
 
 showCommand :: P.Parser (ShellM ())
 showCommand = massage <$> P.tok "show" <*> P.expr
     where
     massage _ expr = do
         defns <- Acc.get envDefns <$> get
-        liftIO . print . normalizeEnv defns $ expr
-
-assumeCommand :: P.Parser (ShellM ())
-assumeCommand = massage <$> P.tok "assume" <*> P.expr
-    where
-    massage _ expr = do
-        defns <- Acc.get envDefns <$> get
-        let normexpr = normalizeEnv defns expr
-        liftIO . putStrLn $ "-| " ++ show normexpr
-        modify (Acc.modify envKnowledge (Set.insert normexpr))
-
-deduceCommand :: P.Parser (ShellM ())
-deduceCommand = massage <$> P.tok "deduce" <*> P.expr
-    where
-    massage _ expr = do
-        defns <- Acc.get envDefns <$> get
-        knowledge <- Acc.get envKnowledge <$> get
-        let normexpr = normalizeEnv defns expr
-        if normexpr `Set.member` knowledge
-            then go normexpr
-            else liftIO . putStrLn $ "Can't deduce because " ++ show normexpr ++ " is not known.  Did you forget to assume it?"
-        
-    go expr = do
-        knowledge <- Acc.get envKnowledge <$> get
-        liftIO . putStrLn $ "|- " ++ show expr
-        let done = modify (Acc.modify envKnowledge (Set.insert expr))
-        case expr of
-            App (App (Var "->") p) q | p `Set.member` knowledge -> go q
-            Lambda n e -> do
-                maybeLine <- liftIO . Readline.readline $ n ++ " = "
-                case maybeLine of
-                    Nothing -> done
-                    Just "" -> done
-                    Just line -> case P.parse (P.complete P.expr) "input" line of
-                        Left err -> do
-                            liftIO . print $ err
-                            go expr
-                        Right var -> do
-                            defns <- Acc.get envDefns <$> get
-                            go . normalizeEnv defns $ subst n var e
-            _ -> done
+        liftIO . print . fromAST defns $ expr
 
 bindingsCommand :: P.Parser (ShellM ())
 bindingsCommand = massage <$> P.tok "bindings"
@@ -91,15 +54,17 @@ bindingsCommand = massage <$> P.tok "bindings"
         defns <- Acc.get envDefns <$> get
         liftIO $ mapM_ putStrLn [ name ++ " = " ++ show expr | (name, expr) <- Map.assocs defns ]
 
-knowledgeCommand :: P.Parser (ShellM ())
-knowledgeCommand = massage <$> P.tok "knowledge"
+assumptionsCommand :: P.Parser (ShellM ())
+assumptionsCommand = massage <$> P.tok "assumptions" <*> P.ident
     where
-    massage _ = do
-        knowledge <- Acc.get envKnowledge <$> get
-        liftIO $ mapM_ print (Set.elems knowledge)
+    massage _ ident = do
+        defns <- Acc.get envDefns <$> get
+        case Map.lookup ident defns of
+            Nothing -> liftIO . putStrLn $ "No such symbol"
+            Just obj -> liftIO . mapM_ putStrLn . map showDetailed . ancestry $ obj
 
 parseCommand :: P.Parser (ShellM ())
-parseCommand = P.choice [letCommand, showCommand, assumeCommand, deduceCommand, bindingsCommand, knowledgeCommand]
+parseCommand = P.choice [letCommand, showCommand, bindingsCommand, assumptionsCommand]
 
 command :: String -> ShellM ()
 command "" = return ()
@@ -109,4 +74,4 @@ command input = case P.parse (P.complete parseCommand) "input" input of
 
 runShell = execStateT shell emptyEnv
     where
-    emptyEnv = Env Map.empty Set.empty
+    emptyEnv = Env Map.empty

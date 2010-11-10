@@ -101,4 +101,6 @@ normalizeM env (App f x) = do
         Lambda n ast -> normalizeM env $ subst n x ast   -- call by name
         Var n -> App (Var n) <$> normalizeM env x
         App a b -> App (App a b) <$> normalizeM env x
-normalizeM env (Var n) = env n
+normalizeM env v@(Var n) = do
+    lup <- env n
+    if lup /= v then normalizeM env lup else return v
