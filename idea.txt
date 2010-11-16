@@ -1,0 +1,34 @@
+SKCalculus = { 
+    * : { x,y | z }
+    S
+    K
+    ----
+    I = *{x=*{x=S,y=K}.z,y=K}.z
+    B = *{x=*{x=S,y=*{x=K,y=S}},y=K}
+    C = *{x=*{x=S,y=*{x=*{x=B,y=B},y=S}},y=*{x=K,y=K}}
+}
+
+LambdaCalculus = {
+    ----
+    * : { x,y | z }
+    \ : { body : {x|z} | z }
+}
+ 
+LambdaSK = {
+    L : LambdaCalculus
+    ----
+    SK = SKCalculus {
+        * = L.*
+        S = L.\{ body = { x | a = x, 
+                              z = L.\{ body = { x | b = x,
+                                                    z = L.\{ body = { x | c = x,
+                                                                          z = *{x=*{x=a,y=c},y={x=b,y=c}}}}}}}}
+        K = L.\{ body = { x | a = x,
+                              z = L.\{ body = { x | z = a } }}}
+    }
+}
+
+
+BL = BuiltinLambdaCalculus
+
+BL.*{ x = LambdaSK { L = BL }.SK.I, y = 42 }  -- >  42
