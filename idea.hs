@@ -26,6 +26,7 @@ instance Show AST where
     show (Lub a b) = "(" ++ show a ++ " \\/ " ++ show b ++ ")"
     show Star = "*"
 
+-- XXX wrong.  Doesn't respect closure.
 eval :: Map.Map Name AST -> AST -> AST
 eval env (Var n) | Just x <- Map.lookup n env = eval env x
                  | otherwise = Var n
