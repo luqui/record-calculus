@@ -13,10 +13,10 @@ data AST
     | Acc AST Name
     | Lub AST AST
 
-fix :: (a -> a) -> a
-fix f = let x = f x in x
-
 newtype Value = VRec { getVRec :: Record Value -> Record Value }
+
+fix :: Value -> Record Value
+fix (VRec f) = let x = f x in x
 
 valLub :: Value -> Value -> Value
 valLub (VRec f) (VRec g) = VRec $ \self -> Map.unionWith valLub (f self) (g self)
@@ -27,7 +27,7 @@ eval env (Var n) | Just x <- Map.lookup n env = x
 eval env (Record r) = VRec $ \self -> 
     let env' = Map.mapWithKey (\k _ -> self Map.! k) r `Map.union` env in
     Map.map (eval env') r
-eval env (Acc ast n) = fix (getVRec (eval env ast)) Map.! n
+eval env (Acc ast n) = fix (eval env ast) Map.! n
 eval env (Lub a b) = valLub (eval env a) (eval env b)
 
 
@@ -48,9 +48,9 @@ instance Show AST where
 instance Show Value where
     show = go 0
         where
-        go indent (VRec openr) | null inner = "{}"
-                               | otherwise = "{\n" ++ unlines inner ++ replicate indent ' ' ++ "}"
+        go indent val | null inner = "{}"
+                      | otherwise = "{\n" ++ unlines inner ++ replicate indent ' ' ++ "}"
             where
             inner = [ replicate indent' ' ' ++ x ++ " = " ++ go indent' y | (x,y) <- Map.assocs r ]
             indent' = indent+2
-            r = fix openr
+            r = fix val

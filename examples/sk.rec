@@ -20,4 +20,4 @@ I = ((S \/ {x = K}).y \/ {x=K}).y
 
 result = (I \/ {x = {EXPECTED={}}}).y
 
-}.result
+}
