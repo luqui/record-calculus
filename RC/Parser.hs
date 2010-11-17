@@ -12,7 +12,13 @@ tok :: String -> Parser String
 tok = tokP . P.string
 
 tokP :: Parser a -> Parser a
-tokP = (<* P.spaces)
+tokP = (<* whitespace)
+
+whitespace :: Parser ()
+whitespace = () <$ P.many (spaces <|> comment)
+    where
+    comment = P.string "--" *> P.many (P.satisfy (/= '\n')) *> P.string "\n"
+    spaces = P.many1 (P.satisfy Char.isSpace)
 
 ident :: Parser Name
 ident = tokP . P.many1 . P.satisfy $ \c -> not (c `elem` " \t\n\\.(){}=\\/")
