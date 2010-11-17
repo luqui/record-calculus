@@ -1,14 +1,2 @@
-This is an experimental core calculus for the Hacksmith editor.
-
-The goals: 
-  * Fluid-assumption workflow -- i.e. paying attention to and
-    constantly shifting your state of knowledge.
-  * System for expressing and easily manipulating knowledge about the
-    program (generalization of types)
-  * Macro system, executing code while you are working to help you.
-    Perhaps prototype a "regex-like" language for manipulating the 
-    program.
-
-Basically it is prototyping the essential ideas of Hacksmith without
-worrying about presentation or bindings to existing languages.  If I can
-work with programs at the command line, then an editor will only help.
+This is an experimental computation foundation system, which I call the "record
+calculus".  See the examples.
