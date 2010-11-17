@@ -5,10 +5,9 @@ import System.Console.Readline (readline, addHistory)
 import Control.Monad.Identity
 import qualified Text.Parsec as P
 import qualified Data.Map as Map
-import RC.Parser
-import Control.Applicative
-import RC.AST
 import System.IO
+import RC.Parser
+import RC.AST
 
 run :: String -> String -> IO ()
 run fname str = do
@@ -16,6 +15,7 @@ run fname str = do
         Left err -> print err
         Right x -> print $ eval Map.empty x
 
+main :: IO ()
 main = do
     hSetBuffering stdout NoBuffering
     args <- getArgs

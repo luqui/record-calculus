@@ -3,10 +3,6 @@
 module RC.AST where
 
 import qualified Data.Map as Map
-import Data.List (intercalate)
-import Control.Applicative
-import Data.Either (partitionEithers)
-import Debug.Trace
 
 type Name = String
 type Record a = Map.Map Name a
@@ -29,15 +25,10 @@ instance Show AST where
     show (Acc e n) = show e ++ "." ++ n
     show (Lub a b) = "(" ++ show a ++ " \\/ " ++ show b ++ ")"
 
-prettyTrace env e = intercalate "\n" [ x ++ " = " ++ show y | (x,y) <- Map.assocs env ] 
-                 ++ "\n----\n" ++ show e ++ "\n"
-
-
 fix :: (a -> a) -> a
 fix f = let x = f x in x
 
-newtype Value 
-    = VRec { getVRec :: Record Value -> Record Value }
+newtype Value = VRec { getVRec :: Record Value -> Record Value }
 
 instance Show Value where
     show (VRec f) = showRecord $ fix f
