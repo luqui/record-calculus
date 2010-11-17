@@ -1,2 +1,2 @@
-This is an experimental computation foundation system, which I call the "record
-calculus".  See the examples.
+This is an experimental code organization system (module system) simmered down
+to its essence.  See the examples in the examples/ directory.
