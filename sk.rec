@@ -1,0 +1,21 @@
+{
+
+S = { 
+    x = {} a = x
+    y = {
+        x = {} b = x
+        y = {
+            x = {} c = x
+            y = ((a\/{x=c}).y \/ {x = (b\/{x=c}).y}).y
+        }
+    }
+}
+
+K = {
+    x = {} a = x
+    y = { x = {} y = a }
+}
+
+result = ((K \/ {x = expected}).y \/ {x = unexpected}).y
+
+}.result
