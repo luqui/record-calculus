@@ -18,7 +18,11 @@ run :: String -> String -> IO ()
 run fname str = do
     case runIdentity $ P.runParserT (complete expr) () fname str of
         Left err -> print err
-        Right x -> print $ eval Map.empty x
+        Right x -> do
+            let (errs, val) = eval Map.empty x
+            case errs of
+                [] -> print val
+                (e:_) -> putStrLn e
 
 main :: IO ()
 main = do
@@ -47,8 +51,11 @@ interactive = do
         env <- get
         liftIO . print $ eval env e
     assign = assignCmd <$> binding
-    assignCmd (n,v) = do
+    assignCmd (n,e) = do
         env <- get
-        let env' = Map.insert n (eval env' v) env
-        put env'
+        let (errs, val) = eval env' e
+            env' = Map.insert n val env
+        case errs of
+            [] -> put env'
+            (e:_) -> liftIO $ putStrLn e
     command = P.try assign <|> inspect
