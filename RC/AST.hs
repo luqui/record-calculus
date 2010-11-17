@@ -13,35 +13,10 @@ data AST
     | Acc AST Name
     | Lub AST AST
 
-showRecord :: (Show a) => Record a -> String
-showRecord r | null inner = "{}"
-             | otherwise  = "{ " ++ unwords inner ++ " }"
-    where
-    inner = [ x ++ " = " ++ show y | (x,y) <- Map.assocs r ]
-
-instance Show AST where
-    show (Var n) = n
-    show (Record r) = showRecord r
-    show (Acc e n) = show e ++ "." ++ n
-    show (Lub a b) = "(" ++ show a ++ " \\/ " ++ show b ++ ")"
-
 fix :: (a -> a) -> a
 fix f = let x = f x in x
 
 newtype Value = VRec { getVRec :: Record Value -> Record Value }
-
-showValue :: Value -> String
-showValue = go 0
-    where
-    go indent (VRec openr) | null inner = "{}"
-                           | otherwise = "{\n" ++ unlines inner ++ replicate indent ' ' ++ "}"
-        where
-        inner = [ replicate indent' ' ' ++ x ++ " = " ++ go indent' y | (x,y) <- Map.assocs r ]
-        indent' = indent+2
-        r = fix openr
-
-instance Show Value where
-    show = showValue
 
 valLub :: Value -> Value -> Value
 valLub (VRec f) (VRec g) = VRec $ \self -> Map.unionWith valLub (f self) (g self)
@@ -54,3 +29,28 @@ eval env (Record r) = VRec $ \self ->
     Map.map (eval env') r
 eval env (Acc ast n) = fix (getVRec (eval env ast)) Map.! n
 eval env (Lub a b) = valLub (eval env a) (eval env b)
+
+
+-- pretty printing
+
+showRecord :: (Show a) => Record a -> String
+showRecord r | null inner = "{}"
+             | otherwise  = "{ " ++ unwords inner ++ " }"
+    where
+    inner = [ x ++ " = " ++ show y | (x,y) <- Map.assocs r ]
+
+instance Show AST where
+    show (Var n) = n
+    show (Record r) = showRecord r
+    show (Acc e n) = show e ++ "." ++ n
+    show (Lub a b) = "(" ++ show a ++ " \\/ " ++ show b ++ ")"
+
+instance Show Value where
+    show = go 0
+        where
+        go indent (VRec openr) | null inner = "{}"
+                               | otherwise = "{\n" ++ unlines inner ++ replicate indent ' ' ++ "}"
+            where
+            inner = [ replicate indent' ' ' ++ x ++ " = " ++ go indent' y | (x,y) <- Map.assocs r ]
+            indent' = indent+2
+            r = fix openr
