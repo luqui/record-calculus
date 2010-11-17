@@ -28,8 +28,9 @@ var = Var <$> ident
 
 record :: Parser AST
 record = Record . Map.fromList <$> (tok "{" *> many binding) <* tok "}"
-    where
-    binding = (,) <$> ident <* tok "=" <*> expr
+
+binding :: Parser (Name, AST)
+binding = (,) <$> ident <* tok "=" <*> expr
 
 accessor :: Parser (AST -> AST)
 accessor = flip Acc <$> (tok "." *> ident)

@@ -3,8 +3,10 @@ module RC.Main where
 import System (getArgs)
 import System.Console.Readline (readline, addHistory)
 import Control.Monad.Identity
+import Control.Monad.State
 import qualified Text.Parsec as P
 import qualified Data.Map as Map
+import Control.Applicative
 import System.IO
 import RC.Parser
 import RC.AST
@@ -20,13 +22,29 @@ main = do
     hSetBuffering stdout NoBuffering
     args <- getArgs
     case args of
-        [] -> interactive
+        [] -> evalStateT interactive Map.empty
         [file] -> run file =<< readFile file
         _ -> putStrLn "Usage: rc [file]"
 
-interactive :: IO ()
+interactive :: StateT (Map.Map Name Value) IO ()
 interactive = do
-    line <- readline "> "
+    line <- liftIO $ readline "> "
     case line of
         Nothing -> return ()
-        Just s -> addHistory s >> run "<input>" s >> interactive
+        Just s -> do
+            liftIO $ addHistory s 
+            case runIdentity $ P.runParserT (complete command) () "<input>" s of
+                Left err -> liftIO $ print err
+                Right action -> action
+            interactive
+    where
+    inspect = inspectCmd <$> expr
+    inspectCmd e = do
+        env <- get
+        liftIO . print $ eval env e
+    assign = assignCmd <$> binding
+    assignCmd (n,v) = do
+        env <- get
+        let env' = Map.insert n (eval env' v) env
+        put env'
+    command = P.try assign <|> inspect
