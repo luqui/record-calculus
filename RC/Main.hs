@@ -5,6 +5,7 @@ import System.Console.Readline (readline, addHistory)
 import Control.Monad.Identity
 import Control.Monad.State
 import qualified Text.Parsec as P
+import qualified Data.Char as Char
 import qualified Data.Map as Map
 import Control.Applicative
 import System.IO
@@ -32,10 +33,11 @@ interactive = do
     case line of
         Nothing -> return ()
         Just s -> do
-            liftIO $ addHistory s 
-            case runIdentity $ P.runParserT (complete command) () "<input>" s of
-                Left err -> liftIO $ print err
-                Right action -> action
+            unless (all Char.isSpace s) $ do
+                liftIO $ addHistory s 
+                case runIdentity $ P.runParserT (complete command) () "<input>" s of
+                    Left err -> liftIO $ print err
+                    Right action -> action
             interactive
     where
     inspect = inspectCmd <$> expr
