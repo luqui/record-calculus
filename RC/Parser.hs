@@ -15,6 +15,9 @@ tok = tokP . P.string
 tokP :: Parser a -> Parser a
 tokP = (<* whitespace)
 
+node :: (P.SourcePos -> a) -> Parser a
+node f = f <$> P.getPosition
+
 whitespace :: Parser ()
 whitespace = () <$ P.many (spaces <|> comment)
     where
@@ -25,19 +28,16 @@ ident :: Parser Name
 ident = tokP . P.many1 . P.satisfy $ \c -> not (c `elem` " \t\n\\.(){}=\\/")
 
 var :: Parser AST
-var = Var <$> ident
+var = node Var <*> ident
 
 record :: Parser AST
-record = Record . Map.fromList <$> (tok "{" *> many binding) <* tok "}"
+record = node Record <*> (Map.fromList <$> (tok "{" *> many binding) <* tok "}")
 
 binding :: Parser (Name, AST)
 binding = (,) <$> ident <* tok "=" <*> expr
 
 accessor :: Parser (AST -> AST)
-accessor = flip Acc <$> (tok "." *> ident)
-
-lub :: Parser AST
-lub = Lub <$> smallExpr <* tok "\\/" <*> expr
+accessor = node (\p x y -> Acc p y x) <*> (tok "." *> ident)
 
 smallExpr :: Parser AST
 smallExpr = foldl (flip id) <$> term <*> many accessor
@@ -45,7 +45,7 @@ smallExpr = foldl (flip id) <$> term <*> many accessor
     term = var <|> record <|> parenExpr
 
 expr :: Parser AST
-expr = foldl1 Lub <$> P.sepBy1 smallExpr (tok "\\/")
+expr = foldl (\c (p,x) -> Lub p c x) <$> smallExpr <*> P.many (tok "\\/" *> node (,) <*> smallExpr)
 
 parenExpr :: Parser AST
 parenExpr = tok "(" *> expr <* tok ")"
