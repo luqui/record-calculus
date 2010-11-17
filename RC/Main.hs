@@ -49,7 +49,10 @@ interactive = do
     inspect = inspectCmd <$> expr
     inspectCmd e = do
         env <- get
-        liftIO . print $ eval env e
+        let (errs, val) = eval env e
+        case errs of
+            [] -> liftIO $ print val
+            (e:_) -> liftIO $ putStrLn e
     assign = assignCmd <$> binding
     assignCmd (n,e) = do
         env <- get
