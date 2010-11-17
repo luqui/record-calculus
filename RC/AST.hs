@@ -9,17 +9,17 @@ import Data.Either (partitionEithers)
 import Debug.Trace
 
 type Name = String
-type Record = Map.Map Name AST
+type Record a = Map.Map Name a
 
 data AST 
     = Var Name
-    | Record Record
+    | Record (Record AST)
     | Acc AST Name
     | Lub AST AST
 
-showRecord :: Record -> String
+showRecord :: (Show a) => Record a -> String
 showRecord r | null inner = "{}"
-             | otherwise = "{ " ++ unwords inner ++ " }"
+             | otherwise  = "{ " ++ unwords inner ++ " }"
     where
     inner = [ x ++ " = " ++ show y | (x,y) <- Map.assocs r ]
 
@@ -32,19 +32,24 @@ instance Show AST where
 prettyTrace env e = intercalate "\n" [ x ++ " = " ++ show y | (x,y) <- Map.assocs env ] 
                  ++ "\n----\n" ++ show e ++ "\n"
 
--- XXX wrong.  Doesn't respect closure.
-eval :: Map.Map Name AST -> AST -> AST
-eval env e | trace (prettyTrace env e) False = undefined
-eval env (Var n) | Just x <- Map.lookup n env = eval env x
-                 | otherwise = Var n
-eval env (Record r) = Record r
-eval env (Acc e n) = 
-    case eval env e of
-        Record r -> eval (r `Map.union` env) (Var n)
-        x -> Acc x n
-eval env (Lub a b) = 
-    case (eval env a, eval env b) of
-        (Record r, Record s) -> Record (Map.unionWith Lub r s)
-        (Record r, y) | Map.null r -> y   -- not necessary, just for prettification
-        (x, Record r) | Map.null r -> x
-        (x,y) -> Lub x y
+
+fix :: (a -> a) -> a
+fix f = let x = f x in x
+
+newtype Value 
+    = VRec { getVRec :: Record Value -> Record Value }
+
+instance Show Value where
+    show (VRec f) = showRecord $ fix f
+
+valLub :: Value -> Value -> Value
+valLub (VRec f) (VRec g) = VRec $ \self -> Map.unionWith valLub (f self) (g self)
+
+eval :: Record Value -> AST -> Value
+eval env (Var n) | Just x <- Map.lookup n env = x
+                 | otherwise = error $ "Variable not in scope: " ++ n
+eval env (Record r) = VRec $ \self -> 
+    let env' = Map.mapWithKey (\k _ -> self Map.! k) r `Map.union` env in
+    Map.map (eval env') r
+eval env (Acc ast n) = fix (getVRec (eval env ast)) Map.! n
+eval env (Lub a b) = valLub (eval env a) (eval env b)

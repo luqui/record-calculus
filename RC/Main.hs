@@ -6,7 +6,9 @@ import Control.Monad.Identity
 import qualified Text.Parsec as P
 import qualified Data.Map as Map
 import RC.Parser
+import Control.Applicative
 import RC.AST
+import System.IO
 
 run :: String -> String -> IO ()
 run fname str = do
@@ -15,6 +17,7 @@ run fname str = do
         Right x -> print $ eval Map.empty x
 
 main = do
+    hSetBuffering stdout NoBuffering
     args <- getArgs
     case args of
         [] -> interactive
