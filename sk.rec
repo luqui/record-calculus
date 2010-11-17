@@ -16,6 +16,8 @@ K = {
     y = { x = {} y = a }
 }
 
-result = ((K \/ {x = expected}).y \/ {x = unexpected}).y
+I = ((S \/ {x = K}).y \/ {x=K}).y
+
+result = (I \/ {x = {EXPECTED={}}}).y
 
 }.result
