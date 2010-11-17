@@ -1,19 +1,23 @@
 {
 
 S = { 
-    x = { x = {} y = { x = {} y = {} } } a = x
+    x = { x y={ x y } } 
+    a = x
     y = {
-        x = { x = {} y = {} } b = x
+        x = { x y } 
+        b = x
         y = {
-            x = {} c = x
+            x
+            c = x
             y = ((a\/{x=c}).y \/ {x = (b\/{x=c}).y}).y
         }
     }
 }
 
 K = {
-    x = {} a = x
-    y = { x = {} y = a }
+    x
+    a = x
+    y = { y = a }
 }
 
 I = ((S \/ {x = K}).y \/ {x=K}).y

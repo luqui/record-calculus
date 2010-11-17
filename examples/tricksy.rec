@@ -1,11 +1,11 @@
 {
     A = {
-        x = { ONE = {} }
+        x = { ONE }
         y = { i = x }
     }
 
     B = {
-        x = { TWO = {} }
+        x = { TWO }
         y = { j = x }
     }
 

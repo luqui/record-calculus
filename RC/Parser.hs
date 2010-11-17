@@ -34,7 +34,11 @@ record :: Parser AST
 record = node Record <*> (Map.fromList <$> (tok "{" *> many binding) <* tok "}")
 
 binding :: Parser (Name, AST)
-binding = (,) <$> ident <* tok "=" <*> expr
+binding = do
+    x <- ident
+    pos <- P.getPosition
+    y <- P.option (Record pos Map.empty) (tok "=" *> expr)
+    return (x,y)
 
 accessor :: Parser (AST -> AST)
 accessor = node (\p x y -> Acc p y x) <*> (tok "." *> ident)
