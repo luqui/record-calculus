@@ -1,0 +1,17 @@
+name: rc
+version: 0.0.1
+cabal-version: >= 1.6 && < 2
+build-type: Simple
+author: Luke Palmer
+category: Language
+synopsis: An experimental module system
+executable rc
+    build-depends: 
+        base == 4.*,
+        haskell98,
+        containers,
+        transformers == 0.2.*,
+        parsec == 3.1.*,
+        readline == 1.0.*
+    main-is: Main.hs
+    ghc-options: -W

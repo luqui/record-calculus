@@ -5,8 +5,9 @@ import qualified Data.Char as Char
 import qualified Data.Map as Map
 import RC.AST
 import Control.Applicative
+import Data.Functor.Identity
 
-type Parser = P.Parsec String ()
+type Parser = P.ParsecT String () Identity
 
 tok :: String -> Parser String
 tok = tokP . P.string

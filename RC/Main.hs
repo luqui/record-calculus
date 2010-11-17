@@ -2,8 +2,10 @@ module RC.Main where
 
 import System (getArgs)
 import System.Console.Readline (readline, addHistory)
-import Control.Monad.Identity
-import Control.Monad.State
+import Data.Functor.Identity
+import Control.Monad.Trans.State
+import Control.Monad.IO.Class
+import Control.Monad (unless)
 import qualified Text.Parsec as P
 import qualified Data.Char as Char
 import qualified Data.Map as Map
