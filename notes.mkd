@@ -1,0 +1,177 @@
+Well this was an interesting little prototype.  I think it's the best of
+my recent candidates for a unique, highly modular language.  The basic
+idea holds water, we just need to bring it up to snuff practically.
+
+It's awkward that "parameters" look the same as "results":
+
+    f = {
+        x = {}
+        out = {}
+    }
+
+This is how one would declare a function parameter... or result.
+Considering I would like to add types to the language anyway (sorry
+Spencer), perhaps we can declare an abstract member using only a type
+annotation:
+
+    f = {
+        x : Int
+        out : Int
+    }
+
+Oops... it seems that the odd symmetry has returned. If `x` and `out`
+were relationally defined a la prolog, this would be okay.  But I don't
+think it's reasonable to have such a thing floating around if the data
+only goes one way.  We need some way to indicate the direction of data
+flow.
+
+What we want to say here is that you must override `x` to use `out`, and 
+it is okay to override `out` (because it is ok to override anything).
+IOW it is a *function* from `x` to an overridable record.  Or can you
+override `out` in terms of `x`... I guess you can, since you would be
+able to if `x` were not a parameter.
+
+Wait! In the second example above, there are two different "you"s.  This
+is seen as a kind of "type definition" for f, which means that one you
+has to fill in `f`, and another you has to fill in `x`.  We can't use
+the abstractness of the inner fields to indicate both those things!
+
+How about this:
+
+    Typify :: (T:*) -> (T -> *) -> *
+    Typify Nat (\x. Fin x Nat) = Pi x. Fin x Nat
+
+    f : { \n : Nat, xs : Fin n Nat = ... } : { n = Nat } -> { xs = Fin n Nat }
+
+    f : { \n : Nat, xs : Fin n Nat = ... } : [{ \n : Nat, xs = Fin n Nat }]   : { n = (\), xs = (\) }
+                                      : (n : Nat) -> (Fin n Nat) -> ?   : *
+                                        : { }                             : *
+    { \N : Nat, \A : *, List = F[N,A] } : { N = \Nat, A = \*, List = * }  : { N = (\), A = (\), List = * }
+                                        : (Nat -> * -> *)                 : *
+    { \List : Nat, \A : *, N = Nat }    : { N = Nat, A = \*, List = \* }  : { N = *, A = (\), List = (\) }
+                                        : (Nat -> * -> Nat)               : *
+    { A : *, List = F[A] } : { A = \*, List = * }
+    { A B : *, f : A->B, xs : List A, out : List B } : { 
+
+
+Ok that wasn't so much an example as a big spew of brainstorming.  Do
+not worry, it makes no sense.  Long story short: types are giving me
+shit.  The override mechanic does not work elegantly with types, since
+we have constraints on how we are allowed to override types (eg.
+co-/contra-/in- variant), and particular that those constraints are
+nonlocal -- they depend on any type that uses the type we are trying to
+override.
+
+What if we treat objects as dumb functions on records.  No currying.
+
+    { \n : Nat, xs = foo n }
+
+Is merely syntactic sugar for:
+
+    \r : { n : Nat }. { xs = foo (r.n) }
+
+Or however record types look. We'll just have to rely on parameter order
+:-( for higher abstractions.
+
+    { \n : Nat, \m: Nat, o = n+m } n=2 m=3 o
+
+    f n:2 m:3 o
+
+    { \f : { a : Nat } -> { b : Nat } } f=({ \e:Nat, \f = e }b/f e/a)
+
+Or...
+
+    \n : Nat. [ xs = n + 1 ]     :  Nat -> Pi {xs} [ xs = Nat ]
+                                 :  Nat -> Pi [ xs = Nat ]
+
+
+Okay how about this:
+
+We are a dependently typed javascript/smalltalk -- only using lisp-style
+symbols instead of strings for members.  In expression context, a symbol
+is indicated, as in lisp, with a leading apostraphe.  The finite map
+from symbols `a` `b` ... to values `x` `y` ... is written:
+
+    [ a = x, b = y ]
+
+Lambdas are written the traditional way:
+
+    \x. ...
+
+Or typed:
+
+    \x : T. ...
+
+As a shorthand we allow:
+
+    [ \a:x, \b:y, F(a,b) ]
+
+for
+
+    \r : Pi [a=x, b=y]. { F(r.a, r.b) }
+
+You may define a map recursively:
+
+    [ a = 4, b = a + 1 ]
+
+The type characterizing a finite set of symbols `a` `b` `c` is:
+
+    { a b c }
+
+`Pi`, `Sigma`, and `->` have the usual definitions:
+
+    Pi : Pi * (\T. (T -> *) -> *)
+    (->) : * -> * -> *
+    t -> u = Pi t (\x. u)
+    Sigma : Pi * (\T. (T -> *) -> *)
+    Sigma t f = Pi * (\Z. Pi t (\x. f x -> Z) -> Z)
+
+Where the first argument can sometimes be left off of `Pi` and `Sigma`.
+
+Essentially this is ΠΣ without boxes -- i.e. without recursive types.
+We can get recursive types like so:
+
+    fixpoint = \(f : *->*) [
+        Mu  = *
+        In  = f Mu -> Mu
+        out = Mu -> f Mu
+    ]
+
+Equipped, we can make cata:
+
+    forall : Pi SymSet \syms. (syms -> *) -> *
+
+    functor = \(f : *->*) [
+        -- shorthand for the following? maybe \*. or somesuch (lambda-open)
+        fmap = forall { a b } \r. (r.a -> r.b) -> f r.a -> f r.b
+    ]
+
+    cata = [
+        \f : *->*
+        \fixf : fixpoint f
+        \func : functor f
+
+        -- if allow shorthand above, should allow it here too
+        -- \* : functor f
+
+        cata : Pi * \b. (f b -> b) -> fixf.Mu -> b
+        cata = \b f m. f (func.fmap (cata b f) (fixf.out m))
+    ]
+
+It would be cool if we could chase that age-old Luke rabbit of rolling
+values and types into one, so we could say:
+
+    cata = Forall * \b. [ type  = (f b -> b) -> fixf.Mu -> b
+                          value = \f m. f (func.fmap (cata b f) (fixf.out m))
+                        ]
+
+Assume we have a function `typed ty val` that can do this.  Then:
+
+    Forall = \t f. typed (Pi t (\x. (f x).type)) (\x. (f x).value)
+
+Cool :-).  Does `typed` make sense?  Does it cause any compilation
+problems?
+
+How far does the rabbit hole go?  Are `typed`, `Pi`, etc. just
+assumptions?  You need to fill them in with a model while you *compile*,
+but that seems fine to me.  Have to explore this more.
